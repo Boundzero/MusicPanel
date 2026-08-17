@@ -1,0 +1,17 @@
+menu "MusicPanel Board"
+
+    choice BSP_BOARD
+        prompt "Target board"
+        default BSP_BOARD_ESP32_4848S040
+        help
+            Selects the physical panel MusicPanel is built for. Only the
+            selected board's driver code is compiled. To add a new panel,
+            create components/bsp/boards/<name>/ and add a choice entry here —
+            no code outside components/bsp should ever need to change.
+
+        config BSP_BOARD_ESP32_4848S040
+            bool "Guition/JCZN ESP32-4848S040 (4.0\" 480x480, ST7701S + GT911)"
+
+    endchoice
+
+endmenu

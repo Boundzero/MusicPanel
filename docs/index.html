@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MusicPanel — Web Installer</title>
+<style>
+  :root {
+    --bg: #101014; --surface: #1b1b20; --track: #33333a;
+    --accent: #3b82f6; --text: #f2f2f5; --dim: #9a9aa2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    line-height: 1.55; padding: 32px 20px 64px;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin: 0 0 4px; }
+  .tag { color: var(--dim); margin: 0 0 32px; font-size: 1.05rem; }
+  h2 { font-size: 1.15rem; margin: 32px 0 8px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--track);
+    border-radius: 14px; padding: 24px; margin: 24px 0; text-align: center;
+  }
+  esp-web-install-button { --esp-tools-button-color: #fff; }
+  .btn-fallback { color: var(--dim); font-size: .9rem; margin-top: 14px; }
+  ol { padding-left: 22px; }
+  li { margin: 6px 0; }
+  a { color: var(--accent); }
+  code {
+    background: #000; padding: 2px 6px; border-radius: 6px;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .9em;
+  }
+  .note {
+    border-left: 3px solid var(--accent); padding: 8px 14px; margin: 14px 0;
+    background: #14141a; border-radius: 0 8px 8px 0; color: var(--dim);
+  }
+  .note strong { color: var(--text); }
+  footer { color: var(--dim); font-size: .85rem; margin-top: 48px; text-align: center; }
+</style>
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1>MusicPanel</h1>
+  <p class="tag">A touchscreen controller for Music Assistant. Flash it right here in your browser.</p>
+
+  <div class="card">
+    <esp-web-install-button manifest="./manifest.json">
+      <button slot="activate" style="
+        background: var(--accent); color: #fff; border: 0; border-radius: 10px;
+        padding: 14px 28px; font-size: 1.05rem; font-weight: 600; cursor: pointer;">
+        Install MusicPanel
+      </button>
+      <span slot="unsupported">
+        Your browser can't flash devices. Please use <strong>Chrome, Edge, Brave, or Opera</strong>
+        on desktop (not Firefox or Safari).
+      </span>
+      <span slot="not-allowed">You need to allow serial access to continue.</span>
+    </esp-web-install-button>
+    <div class="btn-fallback">Plug the panel in via USB, then click Install.</div>
+  </div>
+
+  <div class="note">
+    <strong>Supported browsers:</strong> Chrome, Edge, Brave, Opera — on Windows, macOS, Linux, or ChromeOS.
+    Firefox and Safari don't support in-browser flashing.
+  </div>
+  <div class="note">
+    <strong>Windows:</strong> if no serial port appears, install the
+    <a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html">CH340 USB driver</a>.
+    macOS and most Linux distros already include it.
+  </div>
+
+  <h2>After flashing — set it up from your phone</h2>
+  <ol>
+    <li>The panel creates a Wi-Fi network named <code>MusicPanel-XXXX</code>. Join it on your phone.</li>
+    <li>A setup page opens (or visit <code>http://192.168.4.1</code>).</li>
+    <li>Enter your Wi-Fi, your Music Assistant server address + token, and your time zone and location.</li>
+    <li>Save — the panel reboots and connects. Pick your room in <strong>Settings</strong> and you're playing.</li>
+  </ol>
+
+  <h2>Getting a Music Assistant token</h2>
+  <p>In Music Assistant: <strong>Settings → your profile → create a Long-Lived Token</strong>, then paste it into the setup page.</p>
+
+  <h2>Hardware</h2>
+  <p>This firmware is for the <strong>Guition/JCZN ESP32-4848S040</strong> (4" 480×480 IPS, ESP32-S3).
+     It won't run on other boards. See the
+     <a href="https://github.com/Boundzero/musicpanel">GitHub repository</a> for details and source.</p>
+
+  <footer>
+    Open source (MIT) · <a href="https://github.com/Boundzero/musicpanel">github.com/Boundzero/musicpanel</a><br>
+    Not affiliated with Music Assistant.
+  </footer>
+</div>
+</body>
+</html>

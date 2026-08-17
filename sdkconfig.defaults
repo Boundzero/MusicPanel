@@ -1,0 +1,52 @@
+# =============================================================================
+# MusicPanel default project configuration.
+# These are sensible defaults for the ESP32-S3-WROOM-1-N16R8 reference board.
+# Override per-developer values in `sdkconfig` (which is git-ignored) rather
+# than editing this file.
+# =============================================================================
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# --- CPU ---------------------------------------------------------------------
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# --- Flash (16 MB) -----------------------------------------------------------
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
+CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
+
+# --- PSRAM (8 MB, octal) -----------------------------------------------------
+# The RGB framebuffer lives in PSRAM, so octal mode is required for adequate
+# bandwidth. 80 MHz is the reliable default; 120 MHz is possible but needs the
+# experimental flag and matching flash timing — revisit once the panel is up.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_FETCH_INSTRUCTIONS=y
+CONFIG_SPIRAM_RODATA=y
+
+# --- Partition table ---------------------------------------------------------
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# --- RTOS / task sizing ------------------------------------------------------
+# 1 kHz tick gives LVGL smoother timing.
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# --- LVGL (managed component: lvgl/lvgl ^9) ----------------------------------
+CONFIG_LV_COLOR_DEPTH_16=y
+CONFIG_LV_MEM_SIZE_KILOBYTES=64
+CONFIG_LV_USE_LOG=y
+CONFIG_HTTPD_MAX_REQ_HDR_LEN=1024
+
+CONFIG_LV_FONT_MONTSERRAT_20=y
+CONFIG_LV_FONT_MONTSERRAT_28=y
+
+CONFIG_LV_FONT_MONTSERRAT_48=y
+
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=y
+
+CONFIG_LV_FONT_MONTSERRAT_26=y

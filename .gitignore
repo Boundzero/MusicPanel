@@ -1,0 +1,27 @@
+# ---- ESP-IDF build output ----
+build/
+sdkconfig
+sdkconfig.old
+# Keep sdkconfig.defaults committed — it holds the project's build settings
+# (fonts, TLS cert bundle, HTTP header limits, etc.).
+
+# ---- Managed component cache ----
+managed_components/
+dependencies.lock
+
+# ---- Python / tooling ----
+__pycache__/
+*.pyc
+.venv/
+
+# ---- Editor / OS cruft ----
+.vscode/
+.idea/
+.cache/
+compile_commands.json
+*.swp
+.DS_Store
+Thumbs.db
+
+# NOTE: docs/firmware/*.bin is intentionally NOT ignored — the merged
+# firmware binary lives there so the web installer (GitHub Pages) can serve it.
