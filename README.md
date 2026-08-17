@@ -4,6 +4,10 @@ A wall-mounted (or desk-standing) touchscreen controller for [Music Assistant](h
 
 Native **ESP-IDF + LVGL 9** firmware. No Arduino, no Home Assistant required — the panel talks directly to a Music Assistant server on your network.
 
+Please consider donating to helping support future updates and development of this and my other projects!
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B6U7259U1Y)
+
 ---
 
 ## Features
