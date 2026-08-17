@@ -25,7 +25,7 @@ Please consider donating to helping support future updates and development of th
 
 ## Hardware
 
-This firmware targets one specific, widely-available board:
+This firmware targets one specific, widely-available board:  https://www.amazon.com/dp/B0GL1PHKYG?ref_=ppx_hzsearch_conn_dt_b_fed_asin_title_1
 
 | | |
 |---|---|
