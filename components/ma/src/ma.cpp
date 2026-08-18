@@ -399,9 +399,10 @@ BrowseItem make_item(cJSON *it, const std::string &disp)
     bi.media_type = jstr(it, "media_type");
     bi.is_folder = (bi.media_type == "folder");
     bi.playable = cJSON_IsTrue(cJSON_GetObjectItem(it, "is_playable"));
-    // Container types open deeper (each via its own command); tracks play.
+    // Folders, artists, and albums open deeper (browse). Playlists play whole,
+    // tracks and radio play directly — handled in the UI tap.
     bi.drillable = (bi.media_type == "folder" || bi.media_type == "artist" ||
-                    bi.media_type == "album"  || bi.media_type == "playlist");
+                    bi.media_type == "album");
     return bi;
 }
 

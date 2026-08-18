@@ -790,18 +790,26 @@ void browse_row_cb(lv_event_t *e)
     const ma::BrowseItem &it = s_browse_cur[i];
     if (it.drillable) {
         browse_drill(it);
-    } else if (it.playable) {
-        // Play from this track to the end of the current list, so Next/Prev
-        // walk the rest of the album/playlist (queue is replaced).
+        return;
+    }
+    if (!it.playable) return;
+
+    if (it.media_type == "track") {
+        // Inside an album/playlist track list: play from here to the end so
+        // Next/Prev walk the rest.
         std::vector<std::string> uris;
-        for (size_t j = static_cast<size_t>(i); j < s_browse_cur.size(); ++j) {
-            const ma::BrowseItem &t = s_browse_cur[j];
-            if (t.playable && !t.drillable && !t.uri.empty()) uris.push_back(t.uri);
-        }
+        for (size_t j = static_cast<size_t>(i); j < s_browse_cur.size(); ++j)
+            if (s_browse_cur[j].media_type == "track" && !s_browse_cur[j].uri.empty())
+                uris.push_back(s_browse_cur[j].uri);
         if (uris.size() > 1) ma::play_list(uris);
         else                 ma::play_media(it.uri);
-        if (s_tileview) lv_tileview_set_tile_by_index(s_tileview, 1, 0, LV_ANIM_ON);  // jump to Now Playing
+    } else {
+        // Playlist (play the whole thing), radio/SiriusXM channel, or any other
+        // single playable: play just that item. A one-item queue can't shuffle
+        // to a random channel.
+        ma::play_media(it.uri);
     }
+    if (s_tileview) lv_tileview_set_tile_by_index(s_tileview, 1, 0, LV_ANIM_ON);  // jump to Now Playing
 }
 
 void letter_cb(lv_event_t *e)
