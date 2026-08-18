@@ -791,7 +791,15 @@ void browse_row_cb(lv_event_t *e)
     if (it.drillable) {
         browse_drill(it);
     } else if (it.playable) {
-        ma::play_media(it.uri);
+        // Play from this track to the end of the current list, so Next/Prev
+        // walk the rest of the album/playlist (queue is replaced).
+        std::vector<std::string> uris;
+        for (size_t j = static_cast<size_t>(i); j < s_browse_cur.size(); ++j) {
+            const ma::BrowseItem &t = s_browse_cur[j];
+            if (t.playable && !t.drillable && !t.uri.empty()) uris.push_back(t.uri);
+        }
+        if (uris.size() > 1) ma::play_list(uris);
+        else                 ma::play_media(it.uri);
         if (s_tileview) lv_tileview_set_tile_by_index(s_tileview, 1, 0, LV_ANIM_ON);  // jump to Now Playing
     }
 }

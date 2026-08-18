@@ -29,7 +29,7 @@ constexpr const char *kTempToken = "";
 constexpr int kArtReq   = 160;
 constexpr int kArtAlloc = 176;
 
-struct Cmd { char command[48]; char args[256]; };
+struct Cmd { char command[48]; char args[2048]; };
 struct BrowseReq { char kind; char a[128]; char b[64]; };
 
 std::atomic<State> s_state{State::kIdle};
@@ -788,8 +788,25 @@ void play_media(const std::string &uri)
 {
     std::string q = settings::get("ma_player");
     if (q.empty() || uri.empty()) return;
+    // "replace" clears the room's queue and starts fresh (no leftovers from a
+    // previous selection bleeding into Next).
     enqueue("player_queues/play_media",
-            "{\"queue_id\":\"" + q + "\",\"media\":\"" + uri + "\",\"option\":\"play\"}");
+            "{\"queue_id\":\"" + q + "\",\"media\":\"" + uri + "\",\"option\":\"replace\"}");
+}
+
+void play_list(const std::vector<std::string> &uris)
+{
+    std::string q = settings::get("ma_player");
+    if (q.empty() || uris.empty()) return;
+    std::string arr = "[";
+    for (size_t i = 0; i < uris.size(); ++i) {
+        std::string piece = (i ? "," : "") + ("\"" + uris[i] + "\"");
+        if (arr.size() + piece.size() > 1900) break;  // stay within Cmd.args
+        arr += piece;
+    }
+    arr += "]";
+    enqueue("player_queues/play_media",
+            "{\"queue_id\":\"" + q + "\",\"media\":" + arr + ",\"option\":\"replace\"}");
 }
 
 } // namespace ma

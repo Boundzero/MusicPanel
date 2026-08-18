@@ -84,7 +84,9 @@ bool browse_inflight();
 // A-Z picker (items will be empty); otherwise show 'items'.
 bool take_browse_result(std::vector<BrowseItem> &items, std::string &letters);
 
-// Play an item (by uri) on the currently selected room/queue.
+// Play an item (by uri) on the currently selected room/queue (replaces queue).
 void play_media(const std::string &uri);
+// Play a list of track uris as a fresh queue (e.g. an album from a tapped track).
+void play_list(const std::vector<std::string> &uris);
 
 } // namespace ma
