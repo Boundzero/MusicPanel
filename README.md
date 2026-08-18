@@ -45,7 +45,7 @@ You'll flash the firmware from your web browser, then finish setup from your pho
 
 ### 1. Flash the firmware
 
-1. Open the **[web installer](https://boundzero.github.io/musicpanel/)** in a supported browser (see note below).
+1. Open the **[web installer](https://boundzero.github.io/MusicPanel/)** in a supported browser (see note below).
 2. Plug the panel into your computer via USB.
 3. Click **Install MusicPanel**, choose the serial port, and wait for it to finish.
 
