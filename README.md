@@ -21,6 +21,7 @@ Please consider donating to helping support future updates and development of th
 - **Four-way orientation** — mount it with the power cord exiting any side; set it in Settings.
 - Wi-Fi provisioning and all configuration via a **phone-friendly setup page** — no re-flashing to change settings.
 
+- ** **See project photo's above**
 ---
 
 ## Hardware
