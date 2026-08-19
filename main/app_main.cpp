@@ -43,7 +43,7 @@ lv_color_t c_dim()     { return lv_color_hex(theme::text_dim()); }
 
 // Orientation options — labelled by where the power cord exits.
 const char *kOrientNames[] = {"Cord: Right", "Cord: Bottom", "Cord: Left", "Cord: Top"};
-const int   kOrientDeg[]   = {0, 90, 180, 270};
+const int   kOrientDeg[]   = {0, 270, 180, 90};
 
 // ---- themed-widget registry ----
 enum ThemeRole {
