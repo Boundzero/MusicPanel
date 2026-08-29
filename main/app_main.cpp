@@ -8,6 +8,7 @@
 
 #include "bsp/bsp.h"
 #include "ma.h"
+#include "maws.h"
 #include "network.h"
 #include "settings.h"
 #include "theme.h"
@@ -1050,6 +1051,7 @@ extern "C" void app_main()
 
     network::start();
     ma::start();
+    maws::start();   // v2 Stage 1: WebSocket connect + log (polling still drives UI)
 
     vTaskDelete(nullptr);
 }

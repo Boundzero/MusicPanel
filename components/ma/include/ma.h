@@ -89,4 +89,13 @@ void play_media(const std::string &uri);
 // Play a list of track uris as a fresh queue (e.g. an album from a tapped track).
 void play_list(const std::vector<std::string> &uris);
 
+// ---- WebSocket-driven updates (called by the maws component) ----
+// refresh_snapshot: one-shot fetch to (re)sync full state (startup / reconnect).
+// apply_*_event: apply a pushed event message ({"event","object_id","data"}).
+// note_ws_down: mark the connection as reconnecting (UI feedback only).
+void refresh_snapshot();
+void apply_player_event(const std::string &msg);
+void apply_queue_event(const std::string &msg);
+void note_ws_down();
+
 } // namespace ma

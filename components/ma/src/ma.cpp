@@ -577,6 +577,26 @@ void run_command(const std::string &url, const std::string &token, const Cmd &c)
     MP_LOGI(kTag, "cmd %s -> HTTP %d", c.command, status);
 }
 
+// Refresh album art to match the current now-playing image (called after any
+// state update — snapshot or pushed event — instead of on a poll tick).
+void refresh_art()
+{
+    lock();
+    bool playing = s_np.playing;
+    std::string img = s_np.image_url;
+    unlock();
+    if (playing) {
+        if (img != s_art_url) {
+            s_art_url = img;
+            if (img.empty()) set_pending_art(nullptr, 0, 0);
+            else             fetch_and_decode_art(img, s_token);
+        }
+    } else if (!s_art_url.empty()) {
+        s_art_url.clear();
+        set_pending_art(nullptr, 0, 0);
+    }
+}
+
 void task(void *)
 {
     s_state = State::kWaitingNetwork;
@@ -590,9 +610,7 @@ void task(void *)
     }
 
     std::string url = "http://" + settings::get("ma_host") + ":" + settings::get("ma_port", "8095") + "/api";
-    const std::string players_body = R"({"message_id":"1","command":"players/all","args":{}})";
-    const std::string queues_body  = R"({"message_id":"2","command":"player_queues/all","args":{}})";
-    MP_LOGI(kTag, "polling %s", url.c_str());
+    MP_LOGI(kTag, "MA client ready (WebSocket-driven): %s", url.c_str());
     s_state = State::kConnecting;
 
     // Hand url/token to the browse task and start it now that creds exist.
@@ -600,51 +618,17 @@ void task(void *)
     s_token = token;
     xTaskCreate(browse_task, "ma_browse", 8192, nullptr, 4, nullptr);
 
+    // One initial snapshot so the screen is correct immediately; after that the
+    // WebSocket client (maws) pushes live updates. No periodic polling.
+    refresh_snapshot();
+
+    // Command-only loop: transport/volume/play/browse still go out over HTTP.
+    // Blocks until a command arrives (no busy polling, no network chatter).
     for (;;) {
         Cmd c;
-        if (xQueueReceive(s_cmdq, &c, pdMS_TO_TICKS(3000)) == pdTRUE) {
+        if (xQueueReceive(s_cmdq, &c, portMAX_DELAY) == pdTRUE) {
             run_command(url, token, c);
-            vTaskDelay(pdMS_TO_TICKS(400));
-        }
-
-        std::string resp;
-        int status = 0;
-        if (!api_post(url, token, players_body, resp, status)) {
-            s_state = State::kError;
-            lock(); s_error = "no response (check server address)"; unlock();
-            continue;
-        }
-        if (status == 401 || status == 403) {
-            s_state = State::kError;
-            lock(); s_error = "auth failed (check token)"; unlock();
-            continue;
-        }
-        if (status != 200) {
-            s_state = State::kError;
-            lock(); s_error = "HTTP " + std::to_string(status); unlock();
-            continue;
-        }
-        parse_players(resp);
-        s_state = State::kConnected;
-
-        lock();
-        bool playing = s_np.playing;
-        std::string img = s_np.image_url;
-        unlock();
-
-        if (playing) {
-            std::string qresp;
-            int qstatus = 0;
-            if (api_post(url, token, queues_body, qresp, qstatus) && qstatus == 200)
-                parse_queues(qresp);
-            if (img != s_art_url) {
-                s_art_url = img;
-                if (img.empty()) set_pending_art(nullptr, 0, 0);
-                else             fetch_and_decode_art(img, token);
-            }
-        } else if (!s_art_url.empty()) {
-            s_art_url.clear();
-            set_pending_art(nullptr, 0, 0);
+            vTaskDelay(pdMS_TO_TICKS(200));
         }
     }
 }
@@ -808,6 +792,94 @@ void play_list(const std::vector<std::string> &uris)
     arr += "]";
     enqueue("player_queues/play_media",
             "{\"queue_id\":\"" + q + "\",\"media\":" + arr + ",\"option\":\"replace\"}");
+}
+
+// ---------------------------------------------------------------------------
+// WebSocket-driven updates (called by the maws component).
+//
+// refresh_snapshot()  : one-shot HTTP fetch of players/all + queues to (re)sync
+//                       the full state — used at startup and after a reconnect.
+// apply_player_event(): apply a pushed `player_updated` event's data.
+// apply_queue_event() : apply a pushed `queue_updated` event's data.
+// note_ws_down()      : mark the connection as reconnecting (UI feedback).
+// Each reuses the same parsers as polling; event `data` has the same shape.
+// ---------------------------------------------------------------------------
+
+void refresh_snapshot()
+{
+    if (s_token.empty() || s_api_url.empty()) return;
+    static const std::string players_body = R"({"message_id":"1","command":"players/all","args":{}})";
+    static const std::string queues_body  = R"({"message_id":"2","command":"player_queues/all","args":{}})";
+
+    std::string resp;
+    int status = 0;
+    if (!api_post(s_api_url, s_token, players_body, resp, status) || status != 200) {
+        s_state = State::kError;
+        lock(); s_error = (status == 401 || status == 403) ? "auth failed (check token)"
+                                                           : "no response (check server address)"; unlock();
+        return;
+    }
+    parse_players(resp);
+    s_state = State::kConnected;
+
+    lock(); bool playing = s_np.playing; unlock();
+    if (playing) {
+        std::string qresp; int qstatus = 0;
+        if (api_post(s_api_url, s_token, queues_body, qresp, qstatus) && qstatus == 200)
+            parse_queues(qresp);
+    }
+    refresh_art();
+}
+
+void apply_player_event(const std::string &msg)
+{
+    cJSON *root = cJSON_Parse(msg.c_str());
+    cJSON *p = root ? cJSON_GetObjectItem(root, "data") : nullptr;
+    if (cJSON_IsObject(p)) {
+        std::string id  = jstr(p, "player_id");
+        std::string sel = settings::get("ma_player");
+        if (!id.empty() && id == sel) {
+            NowPlaying np;
+            lock();
+            fill_from_player(p, np);          // also updates s_pos_* (position clock)
+            np.shuffle = s_np.shuffle;        // preserve queue-sourced fields
+            np.repeat  = s_np.repeat;
+            s_np = np;
+            s_np_at_ms = now_ms();
+            s_status = np.playing ? "" : (np.room.empty() ? "Choose a speaker in Settings" : "Nothing playing");
+            s_state = State::kConnected;
+            unlock();
+            refresh_art();
+        }
+    }
+    if (root) cJSON_Delete(root);
+}
+
+void apply_queue_event(const std::string &msg)
+{
+    cJSON *root = cJSON_Parse(msg.c_str());
+    cJSON *q = root ? cJSON_GetObjectItem(root, "data") : nullptr;
+    if (cJSON_IsObject(q)) {
+        lock(); std::string want = s_np.queue_id; unlock();
+        if (!want.empty() && jstr(q, "queue_id") == want) {
+            bool sh = cJSON_IsTrue(cJSON_GetObjectItem(q, "shuffle_enabled"));
+            std::string rp = jstr(q, "repeat_mode");
+            double el = jnum(q, "elapsed_time");
+            double lu = jnum(q, "elapsed_time_last_updated");
+            lock();
+            s_np.shuffle = sh;
+            if (!rp.empty()) s_np.repeat = rp;
+            if (lu > 1600000000) { s_pos_base = el; s_pos_lu = lu; s_pos_valid = true; }
+            unlock();
+        }
+    }
+    if (root) cJSON_Delete(root);
+}
+
+void note_ws_down()
+{
+    // Connection dropped; show "reconnecting" until maws re-syncs. Not an error.
+    if (s_state.load() == State::kConnected) s_state = State::kConnecting;
 }
 
 } // namespace ma
