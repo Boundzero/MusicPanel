@@ -21,6 +21,23 @@ Please consider donating to helping support future updates and development of th
 - **Four-way orientation** — mount it with the power cord exiting any side; set it in Settings.
 - Wi-Fi provisioning and all configuration via a **phone-friendly setup page** — no re-flashing to change settings.
 
+## How it works
+
+MusicPanel talks directly to your Music Assistant server over a persistent
+**WebSocket** connection (`ws://<host>:8095/ws`). On boot it authenticates,
+pulls one snapshot of the current state so the screen is correct immediately,
+and then simply listens — Music Assistant **pushes** updates the instant
+anything changes (track, play/pause, volume, shuffle/repeat, artwork), so the
+display reacts in real time instead of on a timer. Because it only receives data
+when something actually changes, an idle panel sits quietly and puts almost no
+load on your network or server. If the connection drops (a Wi-Fi blip or a
+server restart), it automatically reconnects and re-syncs. Playback commands you
+trigger from the panel (play, skip, volume, browsing your library) are sent to
+Music Assistant's REST API on demand.
+
+> Earlier versions polled the server every few seconds; the current firmware is
+> fully event-driven for instant updates and minimal network traffic.
+
 <img src="1.png" width="400">
 <img src="2.png" width="400">
 <img src="3.png" width="400">
