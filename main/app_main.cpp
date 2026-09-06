@@ -810,6 +810,7 @@ void browse_row_cb(lv_event_t *e)
         // to a random channel.
         ma::play_media(it.uri);
     }
+    ma::request_resync();  // reconcile settled playback state (slow-start speakers)
     if (s_tileview) lv_tileview_set_tile_by_index(s_tileview, 1, 0, LV_ANIM_ON);  // jump to Now Playing
 }
 
@@ -991,6 +992,46 @@ void build_settings_page(lv_obj_t *parent)
     s_orient_btn_label = settings_row(g, "ORIENTATION", open_orient_picker, kOrientNames[orient_current_index()]);
 }
 
+lv_indev_t *pointer_indev()
+{
+    for (lv_indev_t *d = lv_indev_get_next(nullptr); d; d = lv_indev_get_next(d))
+        if (lv_indev_get_type(d) == LV_INDEV_TYPE_POINTER) return d;
+    return nullptr;
+}
+
+// Custom swipe-to-switch. A fast poll watches the touch point; once the finger
+// travels ~45 px horizontally, snap to the adjacent tile immediately (phone
+// feel), then ignore the rest of that touch. Taps (little movement) and
+// vertical list scrolling (dy dominant) are left alone. Independent of LVGL's
+// scroll/gesture system, so it isn't suppressed by the scrollable tileview.
+void swipe_poll(lv_timer_t *)
+{
+    static bool tracking = false, fired = false;
+    static lv_point_t start;
+    lv_indev_t *indev = pointer_indev();
+    if (!indev || !s_tileview) return;
+
+    lv_point_t p;
+    lv_indev_get_point(indev, &p);
+    if (lv_indev_get_state(indev) == LV_INDEV_STATE_PRESSED) {
+        if (!tracking) { tracking = true; fired = false; start = p; return; }
+        if (fired) return;
+        int dx = p.x - start.x, dy = p.y - start.y;
+        if (abs(dx) >= 45 && abs(dx) > abs(dy)) {          // deliberate horizontal move
+            int w   = lv_obj_get_width(s_tileview);
+            int col = (w > 0) ? (lv_obj_get_scroll_x(s_tileview) + w / 2) / w : 0;
+            int target = (dx < 0) ? col + 1 : col - 1;     // finger moved left -> advance
+            if (target < 0) target = 0;
+            if (target > 2) target = 2;
+            if (target != col) lv_tileview_set_tile_by_index(s_tileview, target, 0, LV_ANIM_ON);
+            fired = true;
+            lv_indev_wait_release(indev);                  // don't also tap/scroll
+        }
+    } else {
+        tracking = false;
+    }
+}
+
 void build_ui()
 {
     lv_obj_t *scr = lv_screen_active();
@@ -1009,6 +1050,9 @@ void build_ui()
         lv_obj_set_style_pad_all(t, 0, 0);
         reg(t, ROLE_BG);
     }
+    // Tile changes are driven by our own swipe poll (below), not LVGL's scroll —
+    // disable the tileview's user drag-scroll so the two don't fight.
+    lv_obj_clear_flag(tv, LV_OBJ_FLAG_SCROLLABLE);
 
     build_browse_page(t_browse);
     build_status_group(t_now);
@@ -1019,6 +1063,7 @@ void build_ui()
     lv_tileview_set_tile_by_index(tv, 1, 0, LV_ANIM_OFF);
     apply_theme();
     lv_timer_create(status_tick, 500, nullptr);
+    lv_timer_create(swipe_poll, 30, nullptr);   // ~33 Hz swipe detection
 }
 
 } // namespace

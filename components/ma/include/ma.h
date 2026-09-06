@@ -97,5 +97,7 @@ void refresh_snapshot();
 void apply_player_event(const std::string &msg);
 void apply_queue_event(const std::string &msg);
 void note_ws_down();
+// Reconcile playback state ~2s after a play action (covers slow-start speakers).
+void request_resync();
 
 } // namespace ma

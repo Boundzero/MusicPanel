@@ -39,6 +39,10 @@ std::string        s_status = "Starting";
 std::string        s_error;
 NowPlaying         s_np;
 int64_t            s_np_at_ms = 0;
+
+// Post-play reconcile: scheduled snapshots to catch settled playback state.
+int64_t            s_resync_next  = 0;
+int                s_resync_count = 0;
 std::vector<PlayerInfo> s_players;
 
 // Wall-clock position: MA reports elapsed_time as-of a server timestamp
@@ -117,7 +121,11 @@ void append_latin1(std::string &o, unsigned char t)
         case 0xF2: case 0xF3: case 0xF4: case 0xF5: case 0xF6: case 0xF8: o += 'o'; break;
         case 0xF9: case 0xFA: case 0xFB: case 0xFC: o += 'u'; break;
         case 0xFD: case 0xFF: o += 'y'; break;
-        default: break;  // ×, ÷, Þ, þ and anything else: drop
+        case 0xD7: o += 'x'; break;   // × multiplication sign
+        case 0xF7: o += '/'; break;   // ÷ division sign
+        case 0xDE: o += "Th"; break;  // Þ
+        case 0xFE: o += "th"; break;  // þ
+        default: break;  // anything else: drop
     }
 }
 
@@ -385,7 +393,11 @@ std::string browse_display_name(cJSON *it)
     std::string name = jstr(it, "name");
     if (name == "..") return "";  // MA's parent-nav entry; we handle Back ourselves
     std::string tkey = jstr(it, "translation_key");
-    return name.empty() ? pretty(tkey) : normalize(name);
+    if (name.empty()) return pretty(tkey);
+    std::string norm = normalize(name);
+    // Never drop an item just because normalize() couldn't map its characters
+    // (e.g. a title made entirely of symbols). Fall back to the raw name.
+    return norm.empty() ? name : norm;
 }
 
 BrowseItem make_item(cJSON *it, const std::string &disp)
@@ -622,13 +634,18 @@ void task(void *)
     // WebSocket client (maws) pushes live updates. No periodic polling.
     refresh_snapshot();
 
-    // Command-only loop: transport/volume/play/browse still go out over HTTP.
-    // Blocks until a command arrives (no busy polling, no network chatter).
+    // Command loop: transport/volume/play/browse still go out over HTTP.
+    // Wakes every 1 s to service a scheduled post-play resync; otherwise makes
+    // no network calls (no polling). A resync only happens after a play action.
     for (;;) {
         Cmd c;
-        if (xQueueReceive(s_cmdq, &c, portMAX_DELAY) == pdTRUE) {
+        if (xQueueReceive(s_cmdq, &c, pdMS_TO_TICKS(1000)) == pdTRUE) {
             run_command(url, token, c);
             vTaskDelay(pdMS_TO_TICKS(200));
+        }
+        if (s_resync_count > 0 && now_ms() >= s_resync_next) {
+            refresh_snapshot();
+            if (--s_resync_count > 0) s_resync_next = now_ms() + 2500;
         }
     }
 }
@@ -880,6 +897,16 @@ void note_ws_down()
 {
     // Connection dropped; show "reconnecting" until maws re-syncs. Not an error.
     if (s_state.load() == State::kConnected) s_state = State::kConnecting;
+}
+
+// Reconcile actual playback state a couple seconds after a play action: slow
+// speakers report a transient non-playing state at first, so events alone can
+// leave the UI on the idle screen. A snapshot reads the settled state (same as
+// a restart would). Fires only on a play tap — no idle traffic.
+void request_resync()
+{
+    s_resync_count = 2;
+    s_resync_next  = now_ms() + 2000;
 }
 
 } // namespace ma

@@ -326,6 +326,9 @@ esp_err_t lvgl_init()
     s_indev = lv_indev_create();
     lv_indev_set_type(s_indev, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb(s_indev, touch_read_cb);
+    // Sample touch ~100 Hz so fast flicks capture enough points for LVGL to
+    // compute momentum (default read period is ~30 ms -> too few points).
+    if (lv_timer_t *rt = lv_indev_get_read_timer(s_indev)) lv_timer_set_period(rt, 5);
 
     s_lvgl_mux = xSemaphoreCreateRecursiveMutex();
     if (!s_lvgl_mux) return ESP_ERR_NO_MEM;
