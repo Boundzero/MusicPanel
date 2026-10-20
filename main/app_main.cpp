@@ -347,6 +347,8 @@ void update_album_art()
         show(s_art_img, true);
         show(s_art_note, false);
         if (old) free(old);
+        MP_LOGI(kTag, "art %dx%d  free int=%u", nw, nh,
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
     } else {
         show(s_art_img, false);
         show(s_art_note, true);
@@ -692,8 +694,12 @@ void build_now_playing_group(lv_obj_t *parent)
 
     lv_obj_t *art = lv_obj_create(s_np_grp);
     lv_obj_set_size(art, 160, 160);
-    lv_obj_set_style_radius(art, 16, 0);
-    lv_obj_set_style_clip_corner(art, true, 0);
+    // No rounded-corner clipping: clip_corner forces LVGL to allocate a
+    // full-size layer buffer (~51 KB) every time the art redraws, which fails
+    // on the scarce internal heap and hangs the draw task (watchdog). Square
+    // corners cost nothing to draw.
+    lv_obj_set_style_radius(art, 0, 0);
+    lv_obj_set_style_clip_corner(art, false, 0);
     lv_obj_set_style_border_width(art, 0, 0);
     lv_obj_set_style_pad_all(art, 0, 0);
     lv_obj_clear_flag(art, LV_OBJ_FLAG_SCROLLABLE);
