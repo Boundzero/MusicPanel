@@ -153,7 +153,24 @@ void task(void *)
     esp_websocket_register_events(s_client, WEBSOCKET_EVENT_ANY, ws_events, nullptr);
     esp_websocket_client_start(s_client);
 
-    for (;;) vTaskDelay(pdMS_TO_TICKS(5000));
+    // Supervisor: the client auto-reconnects on its own, but can occasionally
+    // wedge. If WiFi is up yet the socket has been unhealthy for ~30 s, force a
+    // full stop/start so it always claws its way back without a power cycle.
+    // (During a WiFi outage we wait — there's nothing to connect to until the
+    // network component brings WiFi back.)
+    int stuck = 0;
+    for (;;) {
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        bool net   = (network::state() == network::State::kConnected);
+        bool ws_ok = s_client && esp_websocket_client_is_connected(s_client) && s_authed;
+        if (ws_ok || !net) { stuck = 0; continue; }
+        if (++stuck >= 15) {            // ~30 s: WiFi up but no healthy socket
+            ESP_LOGW(kTag, "socket stuck with network up -> restarting client");
+            esp_websocket_client_stop(s_client);
+            esp_websocket_client_start(s_client);
+            stuck = 0;
+        }
+    }
 }
 
 } // namespace

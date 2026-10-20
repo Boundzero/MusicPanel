@@ -30,7 +30,6 @@ namespace network {
 namespace {
 
 constexpr const char *kTag = "net";
-constexpr int kMaxRetry = 5;
 
 struct TzOption { const char *val; const char *label; };
 const TzOption kZones[] = {
@@ -297,13 +296,13 @@ void on_event(void *, esp_event_base_t base, int32_t id, void *data)
         esp_wifi_connect();
     } else if (base == WIFI_EVENT && id == WIFI_EVENT_STA_DISCONNECTED) {
         if (s_state.load() == State::kApPortal) return;
-        if (s_retry.fetch_add(1) < kMaxRetry) {
-            esp_wifi_connect();
-            s_state = State::kConnecting;
-        } else {
-            MP_LOGW(kTag, "connect failed after %d tries", kMaxRetry);
-            s_state = State::kFailed;
-        }
+        // Retry forever so the panel self-heals from a router reboot or any
+        // outage without a power cycle. We don't block the event loop: the
+        // WiFi driver's own connect attempt (scanning for the missing AP) takes
+        // ~1-2 s before it fails again, which paces the retries on its own.
+        s_retry.fetch_add(1);
+        s_state = State::kConnecting;
+        esp_wifi_connect();
     } else if (base == IP_EVENT && id == IP_EVENT_STA_GOT_IP) {
         auto *e = static_cast<ip_event_got_ip_t *>(data);
         char buf[16];
